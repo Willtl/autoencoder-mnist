@@ -7,15 +7,16 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 import numpy as np
+import time
 
 torch.manual_seed(1)    # reproducible
 
 # Hyper Parameters
-EPOCH = 10
+EPOCH = 20
 BATCH_SIZE = 64
 LR = 0.005
 DOWNLOAD_MNIST = False
-N_TEST_IMG = 5
+N_TEST_IMG = 10
 
 
 class AutoEncoder(nn.Module):
@@ -24,6 +25,7 @@ class AutoEncoder(nn.Module):
         # super().__init__()
         super(AutoEncoder, self).__init__()
 
+        # When using Sequential model you must use Variables
         self.encoder = nn.Sequential(
             nn.Linear(28*28, 128),
             nn.Tanh(),
@@ -56,13 +58,8 @@ def load_dataset():
     data = torchvision.datasets.MNIST(
         root='./mnist/',
         train=True,
-        # this is training data
         transform=torchvision.transforms.ToTensor(),
-        # Converts a PIL.Image or numpy.ndarray to
-
-        # torch.FloatTensor of shape (C x H x W) and normalize in the range [0.0, 1.0]
-        download=DOWNLOAD_MNIST,
-        # download it if you don't have it
+        download=DOWNLOAD_MNIST
     )
     return data
 
@@ -76,58 +73,69 @@ def plot_one(data):
     plt.show()
 
 
+# Define GPU and CPU devices
+if torch.cuda.is_available():
+    device = torch.device("cuda:0")
+else:
+    cpu = torch.device("cpu")
+cpu = torch.device("cpu")
+
+# Load dataset
 train_data = load_dataset()
+# Plot one image
 # plot_one(train_data)
-# Data Loader for easy mini-batch return in training, the image batch shape will be (50, 1, 28, 28)
-train_loader = Data.DataLoader(dataset=train_data, batch_size=BATCH_SIZE, shuffle=True)
+# Data Loader for easy mini-batch return in training
+train_loader = Data.DataLoader(dataset=train_data, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True)
 
+# Define model
 autoencoder = AutoEncoder()
-print(autoencoder)
-
+# Move it to the GPU
+autoencoder.to(device)
+# Define optimizer after moving to the GPU
 optimizer = torch.optim.Adam(autoencoder.parameters(), lr=LR)
 loss_func = nn.MSELoss()
 
-# original data (first row) for viewing
+# First N_TEST_IMG images for visualization
 view_data = Variable(train_data.data[:N_TEST_IMG].view(-1, 28*28).type(torch.FloatTensor)/255.)
 
-
+# Training
 for epoch in range(EPOCH):
-    count = 0
-    epoch_loss = 0
-    for step, (x, y) in enumerate(train_loader):
-        b_x = Variable(x.view(-1, 28*28))   # batch x, shape (batch, 28*28)
-        b_y = Variable(x.view(-1, 28*28))   # batch y, shape (batch, 28*28)
-        b_label = Variable(y)               # batch label
+    # To calculate mean loss over this epoch
+    count = epoch_loss = 0
+    start = time.time()
+    for x, y in train_loader:
+        # b_x = Variable(x.view(-1, 28*28))   # batch x, shape (batch, 28*28)
+        # b_y = Variable(x.view(-1, 28*28))   # batch y, shape (batch, 28*28)
+        b_x = Variable(x.view(-1, 28 * 28)).to(device)   # batch x, shape (batch, 28*28)
+        b_y = Variable(x.view(-1, 28 * 28)).to(device)   # batch y, shape (batch, 28*28)
 
         encoded, decoded = autoencoder(b_x)
 
         loss = loss_func(decoded, b_y)      # mean square error
-        epoch_loss += loss
         optimizer.zero_grad()               # clear gradients for this training step
         loss.backward()                     # backpropagation, compute gradients
         optimizer.step()                    # apply gradients
 
+        epoch_loss += loss
         count += 1
+    print(f'Epoch {epoch}, mean loss: {epoch_loss / count}, time: {time.time() - start}')
 
-        print(f'--Epoch: {epoch} | Step: {step}')
+# Testing - Plotting decoded image
+_, decoded_data = autoencoder(view_data.to(device))
+decoded_data = decoded_data.to(cpu)
 
-    print(f'Loss: {epoch_loss / count}')
+# initialize figure
+f, a = plt.subplots(2, N_TEST_IMG, figsize=(5, 2))
 
-    # plotting decoded image (second row)
-    _, decoded_data = autoencoder(view_data)
+for i in range(N_TEST_IMG):
+    a[0][i].imshow(np.reshape(view_data.data.numpy()[i], (28, 28)), cmap='gray')
+    a[0][i].set_xticks(())
+    a[0][i].set_yticks(())
 
-    # initialize figure
-    f, a = plt.subplots(2, N_TEST_IMG, figsize=(5, 2))
-
-    for i in range(N_TEST_IMG):
-        a[0][i].imshow(np.reshape(view_data.data.numpy()[i], (28, 28)), cmap='gray')
-        a[0][i].set_xticks(())
-        a[0][i].set_yticks(())
-
-    for i in range(N_TEST_IMG):
-        a[1][i].clear()
-        a[1][i].imshow(np.reshape(decoded_data.data.numpy()[i], (28, 28)), cmap='gray')
-        a[1][i].set_xticks(())
-        a[1][i].set_yticks(())
-    plt.show()
-    #plt.pause(0.05)
+for i in range(N_TEST_IMG):
+    a[1][i].clear()
+    a[1][i].imshow(np.reshape(decoded_data.data.numpy()[i], (28, 28)), cmap='gray')
+    a[1][i].set_xticks(())
+    a[1][i].set_yticks(())
+plt.show()
+#plt.pause(0.05)
