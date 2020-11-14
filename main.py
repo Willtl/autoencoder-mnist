@@ -74,11 +74,9 @@ def plot_one(data):
 
 
 # Define GPU and CPU devices
-if torch.cuda.is_available():
-    device = torch.device("cuda:0")
-else:
-    cpu = torch.device("cpu")
+device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
 cpu = torch.device("cpu")
+gpu = torch.device("cuda:0")
 
 # Load dataset
 train_data = load_dataset()
@@ -93,7 +91,7 @@ autoencoder = AutoEncoder()
 autoencoder.to(device)
 # Define optimizer after moving to the GPU
 optimizer = torch.optim.Adam(autoencoder.parameters(), lr=LR)
-criterion = nn.MSELoss()
+criterion = nn.MSELoss().to(device)
 
 # First N_TEST_IMG images for visualization
 view_data = Variable(train_data.data[:N_TEST_IMG].view(-1, 28*28).type(torch.FloatTensor)/255.)
@@ -114,7 +112,7 @@ for epoch in range(EPOCH):
         loss.backward()                     # backpropagation, compute gradients
         optimizer.step()                    # apply gradients
 
-        epoch_loss.append(loss.item())      # used to calculate the epoch mean loss
+        epoch_loss.append(loss.to(cpu).item())      # used to calculate the epoch mean loss
     print(f'Epoch {epoch}, mean loss: {np.mean(np.array(epoch_loss))}, time: {time.time() - start}')
 
 # Testing - Plotting decoded image
