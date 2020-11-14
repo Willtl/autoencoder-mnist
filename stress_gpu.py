@@ -6,10 +6,6 @@ import torchvision.models as models
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 
-model = models.resnet50()
-criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
-
 dataset = datasets.FakeData(
     size=1000,
     transform=transforms.ToTensor())
@@ -19,7 +15,10 @@ loader = DataLoader(
     pin_memory=True
 )
 
+model = models.resnet50()
 model.to('cuda:0')
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
 
 for data, target in loader:
     data = data.to('cuda', non_blocking=True)

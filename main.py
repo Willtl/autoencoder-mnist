@@ -93,7 +93,7 @@ autoencoder = AutoEncoder()
 autoencoder.to(device)
 # Define optimizer after moving to the GPU
 optimizer = torch.optim.Adam(autoencoder.parameters(), lr=LR)
-loss_func = nn.MSELoss()
+criterion = nn.MSELoss()
 
 # First N_TEST_IMG images for visualization
 view_data = Variable(train_data.data[:N_TEST_IMG].view(-1, 28*28).type(torch.FloatTensor)/255.)
@@ -101,41 +101,46 @@ view_data = Variable(train_data.data[:N_TEST_IMG].view(-1, 28*28).type(torch.Flo
 # Training
 for epoch in range(EPOCH):
     # To calculate mean loss over this epoch
-    count = epoch_loss = 0
+    epoch_loss = []
     start = time.time()
     for x, y in train_loader:
-        # b_x = Variable(x.view(-1, 28*28))   # batch x, shape (batch, 28*28)
-        # b_y = Variable(x.view(-1, 28*28))   # batch y, shape (batch, 28*28)
         b_x = Variable(x.view(-1, 28 * 28)).to(device)   # batch x, shape (batch, 28*28)
         b_y = Variable(x.view(-1, 28 * 28)).to(device)   # batch y, shape (batch, 28*28)
 
         encoded, decoded = autoencoder(b_x)
 
-        loss = loss_func(decoded, b_y)      # mean square error
+        loss = criterion(decoded, b_y)      # mean square error
         optimizer.zero_grad()               # clear gradients for this training step
         loss.backward()                     # backpropagation, compute gradients
         optimizer.step()                    # apply gradients
 
-        epoch_loss += loss
-        count += 1
-    print(f'Epoch {epoch}, mean loss: {epoch_loss / count}, time: {time.time() - start}')
+        epoch_loss.append(loss.item())      # used to calculate the epoch mean loss
+    print(f'Epoch {epoch}, mean loss: {np.mean(np.array(epoch_loss))}, time: {time.time() - start}')
 
 # Testing - Plotting decoded image
-_, decoded_data = autoencoder(view_data.to(device))
-decoded_data = decoded_data.to(cpu)
+with torch.no_grad():
+    # Set the model to evaluation mode
+    autoencoder = autoencoder.eval()
 
-# initialize figure
-f, a = plt.subplots(2, N_TEST_IMG, figsize=(5, 2))
+    # Encode and decode view_data to visualize the outcome
+    _, decoded_data = autoencoder(view_data.to(device))
+    decoded_data = decoded_data.to(cpu)
 
-for i in range(N_TEST_IMG):
-    a[0][i].imshow(np.reshape(view_data.data.numpy()[i], (28, 28)), cmap='gray')
-    a[0][i].set_xticks(())
-    a[0][i].set_yticks(())
+    # initialize figure
+    f, a = plt.subplots(2, N_TEST_IMG, figsize=(5, 2))
 
-for i in range(N_TEST_IMG):
-    a[1][i].clear()
-    a[1][i].imshow(np.reshape(decoded_data.data.numpy()[i], (28, 28)), cmap='gray')
-    a[1][i].set_xticks(())
-    a[1][i].set_yticks(())
-plt.show()
-#plt.pause(0.05)
+    for i in range(N_TEST_IMG):
+        a[0][i].imshow(np.reshape(view_data.data.numpy()[i], (28, 28)), cmap='gray')
+        a[0][i].set_xticks(())
+        a[0][i].set_yticks(())
+
+    for i in range(N_TEST_IMG):
+        a[1][i].clear()
+        a[1][i].imshow(np.reshape(decoded_data.data.numpy()[i], (28, 28)), cmap='gray')
+        a[1][i].set_xticks(())
+        a[1][i].set_yticks(())
+    plt.show()
+    #plt.pause(0.05)
+
+    # Set the model to train mode
+    autoencoder = autoencoder.train()
