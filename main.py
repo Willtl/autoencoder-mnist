@@ -33,11 +33,11 @@ class AutoEncoder(nn.Module):
             nn.Tanh(),
             nn.Linear(64, 12),
             nn.Tanh(),
-            nn.Linear(12, 3),   # compress to 3 features which can be visualized in plt
+            nn.Linear(12, 6),   # compress to 3 features which can be visualized in plt
         )
 
         self.decoder = nn.Sequential(
-            nn.Linear(3, 12),
+            nn.Linear(6, 12),
             nn.Tanh(),
             nn.Linear(12, 64),
             nn.Tanh(),
