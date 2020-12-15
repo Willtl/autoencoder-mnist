@@ -102,7 +102,7 @@ batch_y = []
 for x, y in train_loader:
     batch_x.append(Variable(x.view(-1, 28 * 28)).to(device))
     batch_y.append(Variable(x.view(-1, 28 * 28)).to(device))
- 
+
 # Training
 for epoch in range(EPOCH):
     # To calculate mean loss over this epoch
