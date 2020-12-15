@@ -27,23 +27,23 @@ class AutoEncoder(nn.Module):
 
         # When using Sequential model you must use Variables
         self.encoder = nn.Sequential(
-            nn.Linear(28*28, 128),
+            nn.Linear(28*28, 256),
+            nn.Tanh(),
+            nn.Linear(256, 128),
             nn.Tanh(),
             nn.Linear(128, 64),
             nn.Tanh(),
-            nn.Linear(64, 12),
-            nn.Tanh(),
-            nn.Linear(12, 6),   # compress to 3 features which can be visualized in plt
+            nn.Linear(64, 6),   # compress to 3 features which can be visualized in plt
         )
 
         self.decoder = nn.Sequential(
-            nn.Linear(6, 12),
-            nn.Tanh(),
-            nn.Linear(12, 64),
+            nn.Linear(6, 64),
             nn.Tanh(),
             nn.Linear(64, 128),
             nn.Tanh(),
-            nn.Linear(128, 28*28),
+            nn.Linear(128, 256),
+            nn.Tanh(),
+            nn.Linear(256, 28*28),
             nn.Sigmoid(),       # compress to a range (0, 1)
         )
 
