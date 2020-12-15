@@ -12,8 +12,8 @@ import time
 torch.manual_seed(1)    # reproducible
 
 # Hyper Parameters
-EPOCH = 20
-BATCH_SIZE = 64
+EPOCH = 120
+BATCH_SIZE = 128
 LR = 0.005
 DOWNLOAD_MNIST = False
 N_TEST_IMG = 10
@@ -96,15 +96,21 @@ criterion = nn.MSELoss().to(device)
 # First N_TEST_IMG images for visualization
 view_data = Variable(train_data.data[:N_TEST_IMG].view(-1, 28*28).type(torch.FloatTensor)/255.)
 
+# Move data to GPU
+batch_x = []
+batch_y = []
+for x, y in train_loader:
+    batch_x.append(Variable(x.view(-1, 28 * 28)).to(device))
+    batch_y.append(Variable(x.view(-1, 28 * 28)).to(device))
+ 
 # Training
 for epoch in range(EPOCH):
     # To calculate mean loss over this epoch
     epoch_loss = []
     start = time.time()
-    for x, y in train_loader:
-        b_x = Variable(x.view(-1, 28 * 28)).to(device)   # batch x, shape (batch, 28*28)
-        b_y = Variable(x.view(-1, 28 * 28)).to(device)   # batch y, shape (batch, 28*28)
 
+    # Loop through batches
+    for b_x, b_y in zip(batch_x, batch_y):
         encoded, decoded = autoencoder(b_x)
 
         loss = criterion(decoded, b_y)      # mean square error
