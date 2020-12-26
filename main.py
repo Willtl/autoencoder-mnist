@@ -12,7 +12,7 @@ torch.manual_seed(1)    # reproducible
 
 # Hyper Parameters
 EPOCH = 20
-BATCH_SIZE = 64
+BATCH_SIZE = 128
 LR = 0.001
 DOWNLOAD_MNIST = False
 N_TEST_IMG = 10
@@ -27,23 +27,23 @@ class AutoEncoder(nn.Module):
         n = 2
         # When using Sequential model you must use Variables
         self.encoder = nn.Sequential(
-            nn.Linear(28*28, 256 * 2),
-            nn.Tanh(),
-            nn.Linear(256 * 2, 128 * 2),
-            nn.Tanh(),
-            nn.Linear(128 * 2, 32 * 2),
-            nn.Tanh(),
-            nn.Linear(32 * 2, 8 * 2),   # compress to 3 features which can be visualized in plt
+            nn.Linear(28*28, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 32),
+            nn.ReLU(),
+            nn.Linear(32, 8),   # compress to 3 features which can be visualized in plt
         )
 
         self.decoder = nn.Sequential(
-            nn.Linear(8 * 2, 32 * 2),
-            nn.Tanh(),
-            nn.Linear(32 * 2, 128 * 2),
-            nn.Tanh(),
-            nn.Linear(128 * 2, 256 * 2),
-            nn.Tanh(),
-            nn.Linear(256 * 2, 28*28),
+            nn.Linear(8, 32),
+            nn.ReLU(),
+            nn.Linear(32, 128),
+            nn.ReLU(),
+            nn.Linear(128, 256),
+            nn.ReLU(),
+            nn.Linear(256, 28*28),
             nn.Sigmoid(),       # compress to a range (0, 1)
         )
 
