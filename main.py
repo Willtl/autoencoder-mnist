@@ -3,18 +3,17 @@ import torch.nn as nn
 from torch.autograd import Variable
 import torch.utils.data as Data
 import torchvision
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm
 import numpy as np
+import matplotlib.pyplot as plt
 import time
+import kmeans
 
 torch.manual_seed(1)    # reproducible
 
 # Hyper Parameters
-EPOCH = 120
-BATCH_SIZE = 128
-LR = 0.005
+EPOCH = 20
+BATCH_SIZE = 64
+LR = 0.001
 DOWNLOAD_MNIST = False
 N_TEST_IMG = 10
 
@@ -25,25 +24,26 @@ class AutoEncoder(nn.Module):
         # super().__init__()
         super(AutoEncoder, self).__init__()
 
+        n = 2
         # When using Sequential model you must use Variables
         self.encoder = nn.Sequential(
-            nn.Linear(28*28, 256),
+            nn.Linear(28*28, 256 * 2),
             nn.Tanh(),
-            nn.Linear(256, 128),
+            nn.Linear(256 * 2, 128 * 2),
             nn.Tanh(),
-            nn.Linear(128, 64),
+            nn.Linear(128 * 2, 32 * 2),
             nn.Tanh(),
-            nn.Linear(64, 6),   # compress to 3 features which can be visualized in plt
+            nn.Linear(32 * 2, 8 * 2),   # compress to 3 features which can be visualized in plt
         )
 
         self.decoder = nn.Sequential(
-            nn.Linear(6, 64),
+            nn.Linear(8 * 2, 32 * 2),
             nn.Tanh(),
-            nn.Linear(64, 128),
+            nn.Linear(32 * 2, 128 * 2),
             nn.Tanh(),
-            nn.Linear(128, 256),
+            nn.Linear(128 * 2, 256 * 2),
             nn.Tanh(),
-            nn.Linear(256, 28*28),
+            nn.Linear(256 * 2, 28*28),
             nn.Sigmoid(),       # compress to a range (0, 1)
         )
 
@@ -64,12 +64,13 @@ def load_dataset():
     return data
 
 
-def plot_one(data):
+def plot_one(data, target):
     # plot one example
-    print(data.data.size())     # (60000, 28, 28)
-    print(data.targets.size())   # (60000)
-    plt.imshow(data.data[2].numpy(), cmap='gray')
-    plt.title('%i' % data.targets[2])
+    # print(data.data.size())     # (60000, 28, 28)
+    # print(data.targets.size())   # (60000)
+    # plt.imshow(data.numpy(), cmap='gray')
+    plt.imshow(data, cmap='gray')
+    plt.title('%i' % target)
     plt.show()
 
 
@@ -80,8 +81,10 @@ gpu = torch.device("cuda:0")
 
 # Load dataset
 train_data = load_dataset()
+
 # Plot one image
 # plot_one(train_data)
+
 # Data Loader for easy mini-batch return in training
 train_loader = Data.DataLoader(dataset=train_data, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True)
 
@@ -148,3 +151,18 @@ with torch.no_grad():
 
     # Set the model to train mode
     autoencoder = autoencoder.train()
+
+# # Compute K-Means for the raw images
+means = kmeans.ClusteringMNIST(train_data)
+means.run_raw()
+
+# Compute K-Means for the encoded representations
+with torch.no_grad():
+    # Encode entire dataset
+    train_loader = Data.DataLoader(dataset=train_data, batch_size=len(train_data), shuffle=True, pin_memory=True)
+    for x, y in train_loader:
+        b_x = Variable(x.view(-1, 28 * 28)).to(device)
+        encoded, _ = autoencoder(b_x)
+        encoded = encoded.to(cpu)
+    # Run K-means on encoded representations
+    means.run_encoded(x, y, encoded)
