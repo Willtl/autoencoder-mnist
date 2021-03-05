@@ -5,6 +5,7 @@ from sklearn.cluster import KMeans, MiniBatchKMeans
 import matplotlib.pyplot as plt
 import random
 
+
 class ClusteringMNIST:
     def __init__(self, train_data):
         self.N_CLUSTERING = 60000

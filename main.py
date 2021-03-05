@@ -24,26 +24,26 @@ class AutoEncoder(nn.Module):
         # super().__init__()
         super(AutoEncoder, self).__init__()
 
-        n = 2
+        n = 28 * 28     # 784
         # When using Sequential model you must use Variables
         self.encoder = nn.Sequential(
-            nn.Linear(28*28, 256),
+            nn.Linear(n, n // 2),
             nn.ReLU(),
-            nn.Linear(256, 128),
+            nn.Linear(n // 2, n // 4),
             nn.ReLU(),
-            nn.Linear(128, 32),
+            nn.Linear(n // 4, n // 8),
             nn.ReLU(),
-            nn.Linear(32, 8),   # compress to 3 features which can be visualized in plt
+            nn.Linear(n // 8, n // 16),   # dim. red. to 49
         )
 
         self.decoder = nn.Sequential(
-            nn.Linear(8, 32),
+            nn.Linear(n // 16, n // 8),
             nn.ReLU(),
-            nn.Linear(32, 128),
+            nn.Linear(n // 8, n // 4),
             nn.ReLU(),
-            nn.Linear(128, 256),
+            nn.Linear(n // 4, n // 2),
             nn.ReLU(),
-            nn.Linear(256, 28*28),
+            nn.Linear(n // 2, n),
             nn.Sigmoid(),       # compress to a range (0, 1)
         )
 
@@ -82,12 +82,6 @@ gpu = torch.device("cuda:0")
 # Load dataset
 train_data = load_dataset()
 
-# Plot one image
-# plot_one(train_data)
-
-# Data Loader for easy mini-batch return in training
-train_loader = Data.DataLoader(dataset=train_data, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True)
-
 # Define model
 autoencoder = AutoEncoder()
 # Move it to the GPU
@@ -96,8 +90,8 @@ autoencoder.to(device)
 optimizer = torch.optim.Adam(autoencoder.parameters(), lr=LR)
 criterion = nn.MSELoss().to(device)
 
-# First N_TEST_IMG images for visualization
-view_data = Variable(train_data.data[:N_TEST_IMG].view(-1, 28*28).type(torch.FloatTensor)/255.)
+# Data Loader for easy mini-batch return in training
+train_loader = Data.DataLoader(dataset=train_data, batch_size=BATCH_SIZE, shuffle=True, pin_memory=True)
 
 # Move data to GPU
 batch_x = []
@@ -105,6 +99,8 @@ batch_y = []
 for x, y in train_loader:
     batch_x.append(Variable(x.view(-1, 28 * 28)).to(device))
     batch_y.append(Variable(x.view(-1, 28 * 28)).to(device))
+
+gpu_data = zip(batch_x, batch_y)
 
 # Training
 for epoch in range(EPOCH):
@@ -123,6 +119,9 @@ for epoch in range(EPOCH):
 
         epoch_loss.append(loss.to(cpu).item())      # used to calculate the epoch mean loss
     print(f'Epoch {epoch}, mean loss: {np.mean(np.array(epoch_loss))}, time: {time.time() - start}')
+
+# First N_TEST_IMG images for visualization
+view_data = Variable(train_data.data[:N_TEST_IMG].view(-1, 28*28).type(torch.FloatTensor)/255.)
 
 # Testing - Plotting decoded image
 with torch.no_grad():
