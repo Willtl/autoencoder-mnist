@@ -3,7 +3,7 @@
 Simple autoencoder for the MNIST dataset.
 
 Original: 
-![](images/original.png)
+![](figures/original.png)
 
 Decoded: 
-![](images/decoded.png     ) 
+![](figures/decoded.png     ) 
