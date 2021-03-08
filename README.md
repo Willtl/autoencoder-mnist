@@ -6,7 +6,7 @@ Original:
 ![](figures/original.png)
 
 Decoded using fully connected NN: 
-![](figures/decoded.png     ) 
+![](figures/decoded.png) 
 
 Decoded using convolutional NN: 
-![](figures/decoded_cnn.png     ) ****
+![](figures/decoded_cnn.png) 
