@@ -13,44 +13,81 @@ torch.manual_seed(1)    # reproducible
 # Hyper Parameters
 EPOCH = 20
 BATCH_SIZE = 128
-LR = 0.001
+LR = 0.0002
 DOWNLOAD_MNIST = False
 N_TEST_IMG = 10
 
 
-class AutoEncoder(nn.Module):
+class ConvAutoEncoder(nn.Module):
     def __init__(self):
         # Initialize superclass
-        # super().__init__()
-        super(AutoEncoder, self).__init__()
+        super(ConvAutoEncoder, self).__init__()
 
-        n = 28 * 28     # 784
-        # When using Sequential model you must use Variables
-        self.encoder = nn.Sequential(
-            nn.Linear(n, n // 2),
+        n_features = 6
+        # Conv network
+        # Output size of each convolutional layer = [(in_channel + 2 * padding - kernel_size) / stride] + 1
+        self.convEncoder = nn.Sequential(
+            # In this case output = [(28 + 2 * 1 - 5) / 1] + 1 = 26
+            # Input [128, 1, 28, 28]
+            nn.Conv2d(in_channels=1, out_channels=n_features, kernel_size=4, stride=2, padding=3),
+            nn.BatchNorm2d(n_features),
             nn.ReLU(),
-            nn.Linear(n // 2, n // 4),
+            # nn.MaxPool2d(kernel_size=2),
+            # Output [128, features_e, 16, 16]
+
+            nn.Conv2d(in_channels=n_features, out_channels=n_features * 2, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(n_features * 2),
             nn.ReLU(),
-            nn.Linear(n // 4, n // 8),
-            nn.ReLU(),
-            nn.Linear(n // 8, n // 16),   # dim. red. to 49
+            # nn.MaxPool2d(kernel_size=2),
+            # Output [128, features_e * 2, 8, 8]
+
+            nn.Conv2d(in_channels=n_features * 2, out_channels=n_features * 4, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(n_features * 4),
+            nn.ReLU()
+            # nn.MaxPool2d(kernel_size=2),
+            # Output [128, features_e * 3, 4, 4]
+
+            # In this case output = [(13 + 2 * 1 - 5) / 1] + 1 = 11
+            # nn.Conv2d(in_channels=10, out_channels=24, kernel_size=4, padding=1, stride=1),
+            # nn.Sigmoid(),
+            # nn.MaxPool2d(kernel_size=2),  # End up with 24 channels of size 5 x 5
+
+            # Dense layers
+            # nn.Linear(in_features=24 * 5 * 5, out_features=64),
+            # nn.Relu(),
+            # nn.Dropout(p=0.2),  # Dropout with probability of 0.2 to avoid overfitting
+            # nn.Linear(in_features=64, out_features=10)  # 10 equals the number of classes
         )
 
-        self.decoder = nn.Sequential(
-            nn.Linear(n // 16, n // 8),
+        self.convDecoder = nn.Sequential(
+            # Input [128, features_e * 3, 4, 4]
+            nn.ConvTranspose2d(n_features * 4, n_features * 2, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(n_features * 2),
             nn.ReLU(),
-            nn.Linear(n // 8, n // 4),
+            # Output [128, features_e * 2, 8, 8]
+
+            nn.ConvTranspose2d(n_features * 2, n_features, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(n_features),
             nn.ReLU(),
-            nn.Linear(n // 4, n // 2),
-            nn.ReLU(),
-            nn.Linear(n // 2, n),
-            nn.Sigmoid(),       # compress to a range (0, 1)
+            # Output [128, 10, 16, 16]
+
+            nn.ConvTranspose2d(n_features, 1, kernel_size=4, stride=2, padding=3),
+            nn.Sigmoid()
+            # Output [128, 1, 28, 28]
         )
 
     def forward(self, x):
-        encoded = self.encoder(x)
-        decoded = self.decoder(encoded)
-        return encoded, decoded
+        # print("forwarding")
+        # print(x.shape)
+        conv_encoded = self.convEncoder(x)
+        print("encoded shape", conv_encoded.shape)
+        quit()
+        conv_decoded = self.convDecoder(conv_encoded)
+        # print("decoded shape", conv_decoded.shape)
+        # quit()
+
+        # decoded = self.decoder(encoded)
+        return conv_encoded, conv_decoded
 
 
 def load_dataset():
@@ -83,7 +120,7 @@ gpu = torch.device("cuda:0")
 train_data = load_dataset()
 
 # Define model
-autoencoder = AutoEncoder()
+autoencoder = ConvAutoEncoder()
 
 # Move it to the GPU
 autoencoder.to(device)
@@ -98,8 +135,8 @@ train_loader = Data.DataLoader(dataset=train_data, batch_size=BATCH_SIZE, shuffl
 batch_x = []
 batch_y = []
 for x, y in train_loader:
-    batch_x.append(Variable(x.view(-1, 28 * 28)).to(device))
-    batch_y.append(Variable(x.view(-1, 28 * 28)).to(device))
+    batch_x.append(Variable(x).to(device))
+    batch_y.append(Variable(x).to(device))
 
 gpu_data = zip(batch_x, batch_y)
 
@@ -122,7 +159,7 @@ for epoch in range(EPOCH):
     print(f'Epoch {epoch}, mean loss: {np.mean(np.array(epoch_loss))}, time: {time.time() - start}')
 
 # First N_TEST_IMG images for visualization
-view_data = Variable(train_data.data[:N_TEST_IMG].view(-1, 28*28).type(torch.FloatTensor)/255.)
+view_data = Variable(train_data.data[:N_TEST_IMG].view(-1, 1, 28, 28).type(torch.FloatTensor) / 255.)
 
 # Testing - Plotting decoded image
 with torch.no_grad():
@@ -147,21 +184,3 @@ with torch.no_grad():
         a[1][i].set_xticks(())
         a[1][i].set_yticks(())
     plt.show()
-
-    # Set the model to train mode
-    autoencoder = autoencoder.train()
-
-# # Compute K-Means for the raw images
-means = kmeans.ClusteringMNIST(train_data)
-means.run_raw()
-
-# Compute K-Means for the encoded representations
-with torch.no_grad():
-    # Encode entire dataset
-    train_loader = Data.DataLoader(dataset=train_data, batch_size=len(train_data), shuffle=True, pin_memory=True)
-    for x, y in train_loader:
-        b_x = Variable(x.view(-1, 28 * 28)).to(device)
-        encoded, _ = autoencoder(b_x)
-        encoded = encoded.to(cpu)
-    # Run K-means on encoded representations
-    means.run_encoded(x, y, encoded)
